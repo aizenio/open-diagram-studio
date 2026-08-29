@@ -425,18 +425,24 @@ textarea {
 }
 .diagram-edge-line {
   fill: none;
+  /* An edge with no colour of its own follows the theme. Width, dash and
+     colour are all set per edge, so they must not be pinned here. */
   stroke: var(--ds-color-edge);
-  stroke-width: 2px;
   stroke-linecap: round;
   stroke-linejoin: round;
   pointer-events: none;
-  transition: stroke var(--ds-duration-fast) var(--ds-ease-standard);
 }
-.diagram-edge:hover .diagram-edge-line { stroke: var(--ds-color-accent); }
-.diagram-edge.selected .diagram-edge-line {
+.diagram-edge-halo {
+  fill: none;
   stroke: var(--ds-color-selection);
-  stroke-width: 3px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--ds-duration-fast) var(--ds-ease-standard);
 }
+.diagram-edge:hover .diagram-edge-halo { opacity: .18; }
+.diagram-edge.selected .diagram-edge-halo { opacity: .32; }
 
 /* ============================== Inspector =============================== */
 .properties-panel {

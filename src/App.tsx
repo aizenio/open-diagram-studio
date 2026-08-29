@@ -51,6 +51,7 @@ import {
   Field,
   IconButton,
   RangeInput,
+  SegmentedControl,
   Spinner,
   SwatchPicker,
   TextInput,
@@ -65,7 +66,11 @@ import {
 } from './features/shortcuts/use-shortcuts'
 import { ShortcutsDialog } from './features/shortcuts/ShortcutsDialog'
 import { diagramRepository } from './data/diagram-repository'
-import type { DiagramDocument, DiagramNodeKind } from './domain/diagram'
+import {
+  edgeDefaults,
+  type DiagramDocument,
+  type DiagramNodeKind,
+} from './domain/diagram'
 import { resolveDrawRect, shouldConstrain } from './domain/drawing'
 import { DiagramEdges } from './features/diagram/DiagramEdges'
 import { DiagramNode } from './features/diagram/DiagramNode'
@@ -190,6 +195,9 @@ function App() {
   const updateSelectedNode = useDiagramStore(
     (state) => state.updateSelectedNode,
   )
+  const updateSelectedEdge = useDiagramStore(
+    (state) => state.updateSelectedEdge,
+  )
   const theme = useUiStore((state) => state.theme)
   const cycleTheme = useUiStore((state) => state.cycleTheme)
   const flowInstance = useRef<ReactFlowInstance<FlowDiagramNode> | null>(null)
@@ -231,6 +239,17 @@ function App() {
   )
   const selectedNode = nodes.find((node) => selectedNodeIds.includes(node.id))
   const selectedEdge = edges.find((edge) => selectedEdgeIds.includes(edge.id))
+  /** The two arrowheads read better as one four-way choice than two toggles. */
+  const startArrow = selectedEdge?.startArrow ?? edgeDefaults.startArrow
+  const endArrow = selectedEdge?.endArrow ?? edgeDefaults.endArrow
+  const arrowEnds =
+    startArrow === 'arrow' && endArrow === 'arrow'
+      ? 'both'
+      : startArrow === 'arrow'
+        ? 'start'
+        : endArrow === 'arrow'
+          ? 'end'
+          : 'none'
   const onNodeClick = useCallback(
     (event: React.MouseEvent, node: FlowDiagramNode) => {
       const nextNodeIds = event.shiftKey
@@ -888,7 +907,7 @@ function App() {
               {selectedNode
                 ? 'Node properties'
                 : selectedEdge
-                  ? 'Arrow selected'
+                  ? 'Arrow properties'
                   : 'Nothing selected'}
             </h2>
           </div>
@@ -1041,9 +1060,99 @@ function App() {
             ) : null}
           </div>
         ) : selectedEdge ? (
-          <p className="panel-hint">
-            Use the delete button or press Delete to remove this arrow.
-          </p>
+          <div className="property-fields">
+            <div className="property-section-title"><span>Route</span></div>
+            <SegmentedControl
+              label="Line routing"
+              value={selectedEdge.routing ?? edgeDefaults.routing}
+              options={[
+                { value: 'curved', label: 'Curved' },
+                { value: 'straight', label: 'Straight' },
+                { value: 'elbow', label: 'Elbow' },
+              ]}
+              onChange={(routing) => updateSelectedEdge({ routing })}
+            />
+
+            <SegmentedControl
+              label="Arrowheads"
+              value={arrowEnds}
+              options={[
+                { value: 'end', label: 'End' },
+                { value: 'start', label: 'Start' },
+                { value: 'both', label: 'Both' },
+                { value: 'none', label: 'None' },
+              ]}
+              onChange={(ends) =>
+                updateSelectedEdge({
+                  startArrow:
+                    ends === 'start' || ends === 'both' ? 'arrow' : 'none',
+                  endArrow: ends === 'end' || ends === 'both' ? 'arrow' : 'none',
+                })
+              }
+            />
+
+            <div className="property-section-title"><span>Appearance</span></div>
+            <SegmentedControl
+              label="Line style"
+              value={selectedEdge.strokeStyle ?? edgeDefaults.strokeStyle}
+              options={[
+                { value: 'solid', label: 'Solid' },
+                { value: 'dashed', label: 'Dashed' },
+                { value: 'dotted', label: 'Dotted' },
+              ]}
+              onChange={(strokeStyle) => updateSelectedEdge({ strokeStyle })}
+            />
+
+            <Field label="Colour">
+              <SwatchPicker
+                label="Line colour presets"
+                value={selectedEdge.strokeColor ?? ''}
+                options={strokeSwatches}
+                onSelect={(strokeColor) => updateSelectedEdge({ strokeColor })}
+              />
+              <ColorInput
+                aria-label="Custom line colour"
+                value={selectedEdge.strokeColor ?? '#5c6478'}
+                onChange={(event) =>
+                  updateSelectedEdge({ strokeColor: event.target.value })
+                }
+              />
+              {selectedEdge.strokeColor ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  block
+                  onClick={() => updateSelectedEdge({ strokeColor: undefined })}
+                >
+                  Follow the theme
+                </Button>
+              ) : null}
+            </Field>
+
+            <Field
+              htmlFor="edge-stroke-width"
+              label={
+                <span className="field-label-row">
+                  Thickness
+                  <span className="field-value ds-numeric">
+                    {selectedEdge.strokeWidth ?? edgeDefaults.strokeWidth}
+                  </span>
+                </span>
+              }
+            >
+              <RangeInput
+                id="edge-stroke-width"
+                min={1}
+                max={8}
+                value={selectedEdge.strokeWidth ?? edgeDefaults.strokeWidth}
+                onChange={(event) =>
+                  updateSelectedEdge({
+                    strokeWidth: Number(event.target.value),
+                  })
+                }
+              />
+            </Field>
+          </div>
         ) : (
           <p className="panel-hint">
             Select a node to edit its label and appearance.

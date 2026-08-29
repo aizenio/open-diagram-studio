@@ -69,6 +69,19 @@ interface DiagramState {
   removeNode: (nodeId: string) => void
   updateNodeLabel: (nodeId: string, label: string) => void
   resizeTextNode: (nodeId: string, width: number, height: number) => void
+  updateSelectedEdge: (
+    patch: Partial<
+      Pick<
+        DiagramEdge,
+        | 'routing'
+        | 'startArrow'
+        | 'endArrow'
+        | 'strokeColor'
+        | 'strokeWidth'
+        | 'strokeStyle'
+      >
+    >,
+  ) => void
   updateSelectedNode: (
     patch: Partial<
       Pick<
@@ -508,6 +521,12 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
     set((state) => ({
       nodes: state.nodes.map((node) =>
         node.id === nodeId ? { ...node, width, height } : node,
+      ),
+    })),
+  updateSelectedEdge: (patch) =>
+    set((state) => ({
+      edges: state.edges.map((edge) =>
+        state.selectedEdgeIds.includes(edge.id) ? { ...edge, ...patch } : edge,
       ),
     })),
   updateSelectedNode: (patch) =>
