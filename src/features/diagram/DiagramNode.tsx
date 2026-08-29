@@ -77,11 +77,18 @@ export function DiagramNode({ id, data, selected }: NodeProps<FlowDiagramNode>) 
       ))}
       <div
         className={`node-shape node-shape--${data.kind}`}
-        style={{
-          backgroundColor: data.fillColor,
-          borderColor: data.strokeColor,
-          borderWidth: data.strokeWidth,
-        }}
+        style={
+          // A text node has no outline — its stroke colour is the text colour.
+          // Leaving the border off here means the stylesheet needs no
+          // `!important` to undo it, so a text node can still carry a fill.
+          data.kind === 'text'
+            ? { backgroundColor: data.fillColor }
+            : {
+                backgroundColor: data.fillColor,
+                borderColor: data.strokeColor,
+                borderWidth: data.strokeWidth,
+              }
+        }
       />
       <div className="node-content">
         {Icon && !editing ? (

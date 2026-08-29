@@ -9,6 +9,7 @@ import {
   type NodeChange,
 } from '@xyflow/react'
 import { create } from 'zustand'
+import { nodeDefaults } from '../design-system/tokens'
 import {
   createBlankDocument,
   type DiagramDocument,
@@ -38,6 +39,9 @@ interface DiagramState {
   selectedEdgeIds: string[]
   pendingConnector: PendingConnector | null
   interactionLog: InteractionLog[]
+  /** In-app clipboard. Deliberately not the system clipboard: reading that
+   *  needs a permission prompt, and copying between boards is not a goal. */
+  clipboard: { nodes: DiagramNode[]; edges: DiagramEdge[] }
   hydrated: boolean
   saveState: SaveState
   hydrate: (document: DiagramDocument | null) => void
@@ -59,14 +63,29 @@ interface DiagramState {
   logInteraction: (message: string) => void
   clearInteractionLog: () => void
   setSelection: (nodeIds: string[], edgeIds: string[]) => void
+  selectAll: () => void
+  clearSelection: () => void
   moveSelected: (deltaX: number, deltaY: number) => void
   deleteSelected: () => void
+  duplicateSelected: () => void
+  copySelected: () => void
+  pasteClipboard: () => void
   removeNode: (nodeId: string) => void
   updateNodeLabel: (nodeId: string, label: string) => void
   resizeTextNode: (nodeId: string, width: number, height: number) => void
   updateSelectedNode: (
     patch: Partial<
-      Pick<DiagramNode, 'label' | 'fillColor' | 'strokeColor' | 'strokeWidth'>
+      Pick<
+        DiagramNode,
+        | 'label'
+        | 'fillColor'
+        | 'strokeColor'
+        | 'strokeWidth'
+        | 'x'
+        | 'y'
+        | 'width'
+        | 'height'
+      >
     >,
   ) => void
 }
@@ -97,6 +116,38 @@ const labels: Record<DiagramNodeKind, string> = {
   cloud: 'Cloud',
 }
 
+/** How far a duplicate or paste lands from its source. */
+const PASTE_OFFSET = 24
+
+/**
+ * Clones nodes with fresh ids, plus any edge whose two ends are both in the
+ * selection — an edge to something that was not copied has nothing to attach
+ * to on the other side.
+ */
+const cloneSelection = (
+  nodes: DiagramNode[],
+  edges: DiagramEdge[],
+  offset: number,
+): { nodes: DiagramNode[]; edges: DiagramEdge[] } => {
+  const idByOriginal = new Map<string, string>()
+  const clonedNodes = nodes.map((node) => {
+    const id = crypto.randomUUID()
+    idByOriginal.set(node.id, id)
+    return { ...node, id, x: node.x + offset, y: node.y + offset }
+  })
+  const clonedEdges = edges
+    .filter(
+      (edge) => idByOriginal.has(edge.source) && idByOriginal.has(edge.target),
+    )
+    .map((edge) => ({
+      ...edge,
+      id: crypto.randomUUID(),
+      source: idByOriginal.get(edge.source)!,
+      target: idByOriginal.get(edge.target)!,
+    }))
+  return { nodes: clonedNodes, edges: clonedEdges }
+}
+
 const createNode = (
   kind: DiagramNodeKind,
   index: number,
@@ -109,9 +160,7 @@ const createNode = (
   width: bounds?.width ?? (kind === 'text' ? 200 : kind === 'diamond' ? 120 : 156),
   height: bounds?.height ?? (kind === 'text' ? 40 : kind === 'diamond' ? 120 : 84),
   label: labels[kind],
-  fillColor: '#ffffff',
-  strokeColor: '#31352f',
-  strokeWidth: 2,
+  ...nodeDefaults,
 })
 
 export const toFlowNode = (
@@ -157,6 +206,7 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
   selectedEdgeIds: [],
   pendingConnector: null,
   interactionLog: [],
+  clipboard: { nodes: [], edges: [] },
   hydrated: false,
   saveState: 'loading',
 
@@ -399,6 +449,80 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
       return nodesUnchanged && edgesUnchanged
         ? state
         : { selectedNodeIds, selectedEdgeIds }
+    }),
+  selectAll: () =>
+    set((state) => ({
+      selectedNodeIds: state.nodes.map((node) => node.id),
+      selectedEdgeIds: state.edges.map((edge) => edge.id),
+      interactionLog: appendInteraction(
+        state.interactionLog,
+        `Selected all ${state.nodes.length} node(s)`,
+      ),
+    })),
+  clearSelection: () =>
+    set((state) =>
+      state.selectedNodeIds.length === 0 && state.selectedEdgeIds.length === 0
+        ? state
+        : { selectedNodeIds: [], selectedEdgeIds: [], pendingConnector: null },
+    ),
+  duplicateSelected: () =>
+    set((state) => {
+      const sourceNodes = state.nodes.filter((node) =>
+        state.selectedNodeIds.includes(node.id),
+      )
+      if (sourceNodes.length === 0) return state
+      const copy = cloneSelection(sourceNodes, state.edges, PASTE_OFFSET)
+      return {
+        nodes: [...state.nodes, ...copy.nodes],
+        edges: [...state.edges, ...copy.edges],
+        selectedNodeIds: copy.nodes.map((node) => node.id),
+        selectedEdgeIds: [],
+        interactionLog: appendInteraction(
+          state.interactionLog,
+          `Duplicated ${copy.nodes.length} node(s)`,
+        ),
+      }
+    }),
+  copySelected: () =>
+    set((state) => {
+      const nodes = state.nodes.filter((node) =>
+        state.selectedNodeIds.includes(node.id),
+      )
+      if (nodes.length === 0) return state
+      const nodeIds = new Set(nodes.map((node) => node.id))
+      return {
+        clipboard: {
+          nodes,
+          edges: state.edges.filter(
+            (edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target),
+          ),
+        },
+        interactionLog: appendInteraction(
+          state.interactionLog,
+          `Copied ${nodes.length} node(s)`,
+        ),
+      }
+    }),
+  pasteClipboard: () =>
+    set((state) => {
+      if (state.clipboard.nodes.length === 0) return state
+      const copy = cloneSelection(
+        state.clipboard.nodes,
+        state.clipboard.edges,
+        PASTE_OFFSET,
+      )
+      return {
+        nodes: [...state.nodes, ...copy.nodes],
+        edges: [...state.edges, ...copy.edges],
+        selectedNodeIds: copy.nodes.map((node) => node.id),
+        selectedEdgeIds: [],
+        // Repeated pastes cascade instead of stacking on one spot.
+        clipboard: copy,
+        interactionLog: appendInteraction(
+          state.interactionLog,
+          `Pasted ${copy.nodes.length} node(s)`,
+        ),
+      }
     }),
   moveSelected: (deltaX, deltaY) =>
     set((state) => ({

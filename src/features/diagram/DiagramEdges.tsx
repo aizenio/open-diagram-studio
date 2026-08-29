@@ -44,17 +44,24 @@ export function DiagramEdges({
     <ViewportPortal>
       <svg className="diagram-edges" aria-label="Diagram arrows">
         <defs>
+          {/* userSpaceOnUse keeps the head a fixed size whatever the stroke
+              width is, and the slight concave tail stops it reading as a
+              blunt triangle at low zoom. */}
           <marker
             id="diagram-arrowhead"
-            viewBox="0 0 12 8"
-            markerWidth="12"
+            viewBox="0 0 11 8"
+            markerWidth="11"
             markerHeight="8"
-            refX="12"
+            refX="10"
             refY="4"
             orient="auto"
             markerUnits="userSpaceOnUse"
           >
-            <path d="M0,0 L0,8 L12,4 z" fill="context-stroke" />
+            <path
+              d="M0,0.5 L11,4 L0,7.5 L1.8,4 z"
+              fill="context-stroke"
+              strokeLinejoin="round"
+            />
           </marker>
         </defs>
         {edges.map((edge) => {
