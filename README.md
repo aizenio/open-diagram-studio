@@ -6,11 +6,14 @@ Diagram Studio is a local-first diagram editor that runs entirely in your browse
 
 - Infinite canvas with panning and zoom from 5% to 800%
 - Rectangle, rounded rectangle, ellipse, diamond, text, and arrow tools
-- Drag to draw and resize shapes
+- Architecture nodes: client, server, database, queue, and cloud
+- Drag to draw and resize shapes; hold `Shift` for perfect squares and circles
+- Keyboard shortcuts for every tool
+- Light, dark, and system themes
 - Inline text editing
 - Connectors that remain attached when nodes move
 - Single and multi-node selection, movement, and deletion
-- Node label, fill, stroke, and stroke-width controls
+- Editable position and size, plus label, fill, stroke, and stroke-width controls
 - Collapsible properties panel
 - Automatic browser storage with IndexedDB
 - JSON backup and PNG export
@@ -53,11 +56,26 @@ The production preview is available at `http://127.0.0.1:4173`.
 ## Usage
 
 1. Choose a shape from the left toolbar and drag on the canvas.
-2. Double-click empty canvas space to create text, or choose the Text tool.
-3. Double-click a node label to edit it.
-4. Select the Arrow tool, then connect node handles.
-5. Select a node to resize it or edit its appearance in the properties panel.
-6. Use Shift-click or drag a selection area to select multiple nodes.
+2. Hold `Shift` while dragging to constrain the shape to a perfect square or circle.
+3. Double-click empty canvas space to create text, or choose the Text tool.
+4. Double-click a node label to edit it.
+5. Select the Arrow tool, then connect node handles.
+6. Select a node to resize it or edit its position, size, and appearance in the properties panel.
+7. Use Shift-click or drag a selection area to select multiple nodes.
+
+### Tool Shortcuts
+
+| Key | Tool |
+| --- | --- |
+| `V` | Select |
+| `T` | Text |
+| `R` | Rectangle |
+| `O` | Ellipse |
+| `D` | Decision (diamond) |
+| `A` | Arrow |
+
+Shortcuts are ignored while a text field has focus, so typing a label never
+swaps the active tool.
 
 ### Canvas Controls
 
@@ -68,6 +86,15 @@ The production preview is available at `http://127.0.0.1:4173`.
 - Arrow keys: move selected nodes by 10 pixels
 - Delete or Backspace: remove the selection
 - Escape: cancel the active drawing or connector tool
+
+### Theme
+
+The button in the top-right cycles light, dark, and system. The choice is kept
+in `localStorage` and applied before the first paint, so reloading never
+flashes the wrong theme.
+
+PNG export always renders on the light theme: an exported board usually ends up
+in a document or a deck, where a dark image would be the wrong artefact.
 
 ## Local Data and Backups
 
@@ -103,12 +130,18 @@ Use **JSON** in the top bar to create a portable backup. Clearing browser site d
 ```text
 src/
 	data/                 IndexedDB persistence
-	domain/               Framework-independent diagram models
+	design-system/        Tokens and UI primitives (see docs/design-system.md)
+	domain/               Framework-independent diagram models and geometry
 	features/diagram/     Canvas nodes and edge rendering
-	stores/               Zustand state and diagram actions
+	features/shortcuts/   Keyboard shortcut registry
+	stores/               Zustand state, diagram actions, and UI preferences
 	App.tsx                Editor shell and interactions
-	App.css                Editor and canvas styling
+	App.css                Editor layout
 ```
+
+All visual decisions live in the design system — see
+[docs/design-system.md](docs/design-system.md) for the token set and the rules
+for extending it.
 
 ## Contributing
 

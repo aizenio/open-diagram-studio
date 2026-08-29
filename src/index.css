@@ -1,12 +1,9 @@
-:root {
-  color: #20251f;
-  background: #f2f0ea;
-  font-family: 'Trebuchet MS', 'Avenir Next', sans-serif;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-}
-
+/**
+ * Document-level reset.
+ *
+ * Everything visual lives in the design system — this file only owns the
+ * document shell. Do not add colours or type here.
+ */
 html,
 body,
 #root {
@@ -14,4 +11,16 @@ body,
   height: 100%;
   margin: 0;
   overflow: hidden;
+}
+
+body {
+  color: var(--ds-color-text);
+  background: var(--ds-color-canvas);
+  font-family: var(--ds-font-sans);
+  font-size: var(--ds-font-size-xs);
+  line-height: var(--ds-line-height-normal);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
