@@ -81,6 +81,9 @@ Use **JSON** in the top bar to create a portable backup. Clearing browser site d
 | --- | --- |
 | `npm run dev` | Start the Vite development server |
 | `npm run lint` | Run Oxlint |
+| `npm test` | Run the automated test suite once |
+| `npm run test:watch` | Run tests in watch mode |
+| `npm run test:coverage` | Run tests and generate a coverage report |
 | `npm run build` | Type-check and create a production build |
 | `npm run preview` | Preview the production build with Vite defaults |
 | `npm run start` | Preview at `127.0.0.1:4173` |
@@ -114,7 +117,7 @@ Contributions are welcome.
 1. Fork the repository and create a focused branch.
 2. Install dependencies with `npm install`.
 3. Make a small, scoped change consistent with the existing architecture.
-4. Run `npm run lint` and `npm run build`.
+4. Run `npm test`, `npm run lint`, and `npm run build`.
 5. Open a pull request explaining the behavior changed and how it was tested.
 
 For bug reports, include reproduction steps, expected behavior, actual behavior, browser details, and screenshots when useful. Please do not include unrelated formatting or refactoring in the same pull request.
