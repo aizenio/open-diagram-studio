@@ -37,8 +37,6 @@ export function DiagramNode({ id, data, selected }: NodeProps<FlowDiagramNode>) 
   const updateNodeLabel = useDiagramStore((state) => state.updateNodeLabel)
   const removeNode = useDiagramStore((state) => state.removeNode)
   const resizeTextNode = useDiagramStore((state) => state.resizeTextNode)
-  const clickConnector = useDiagramStore((state) => state.clickConnector)
-  const pendingConnector = useDiagramStore((state) => state.pendingConnector)
   const Icon =
     data.kind in architectureIcons
       ? architectureIcons[data.kind as keyof typeof architectureIcons]
@@ -56,23 +54,16 @@ export function DiagramNode({ id, data, selected }: NodeProps<FlowDiagramNode>) 
         lineClassName="node-resizer-line"
         handleClassName="node-resizer-handle"
       />
+      {/* React Flow owns the connect interaction, including click-to-connect
+          and its own `connectingfrom`/`connectingto` state classes. */}
       {connectorPositions.map(([side, position]) => (
         <Handle
           key={side}
           id={side}
-          className={`connector-handle${
-            pendingConnector?.nodeId === id &&
-            pendingConnector.handleId === side
-              ? ' connector-handle--pending'
-              : ''
-          }`}
+          className="connector-handle"
           type="source"
           position={position}
           title={`Connect from ${side}`}
-          onClick={(event) => {
-            event.stopPropagation()
-            clickConnector(id, side)
-          }}
         />
       ))}
       <div

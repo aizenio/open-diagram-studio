@@ -32,7 +32,6 @@ describe('diagram store', () => {
       edges: [],
       selectedNodeIds: [],
       selectedEdgeIds: [],
-      pendingConnector: null,
       interactionLog: [],
       hydrated: true,
       saveState: 'saved',
@@ -170,54 +169,6 @@ describe('diagram store', () => {
     ])
   })
 
-  it('creates and selects an arrow from two clicked connectors', () => {
-    useDiagramStore.setState({
-      nodes: [makeNode('source'), makeNode('target')],
-    })
-
-    useDiagramStore.getState().clickConnector('source', 'right')
-    expect(useDiagramStore.getState().pendingConnector).toEqual({
-      nodeId: 'source',
-      handleId: 'right',
-    })
-
-    useDiagramStore.getState().clickConnector('target', 'left')
-
-    const state = useDiagramStore.getState()
-    expect(state.edges).toEqual([
-      expect.objectContaining({
-        source: 'source',
-        target: 'target',
-        sourceHandle: 'right',
-        targetHandle: 'left',
-      }),
-    ])
-    expect(state.selectedEdgeIds).toEqual([state.edges[0].id])
-    expect(state.pendingConnector).toBeNull()
-  })
-
-  it('cancels when the same connector is clicked twice', () => {
-    useDiagramStore.setState({ nodes: [makeNode('source')] })
-
-    useDiagramStore.getState().clickConnector('source', 'right')
-    useDiagramStore.getState().clickConnector('source', 'right')
-
-    expect(useDiagramStore.getState().pendingConnector).toBeNull()
-    expect(useDiagramStore.getState().edges).toEqual([])
-  })
-
-  it('cancels a pending connector explicitly', () => {
-    useDiagramStore.setState({ nodes: [makeNode('source')] })
-    useDiagramStore.getState().clickConnector('source', 'right')
-
-    useDiagramStore.getState().cancelConnector()
-
-    expect(useDiagramStore.getState().pendingConnector).toBeNull()
-    expect(useDiagramStore.getState().interactionLog.at(-1)?.message).toBe(
-      'Pending arrow cancelled',
-    )
-  })
-
   it('normalizes handles for a drag-created arrow', () => {
     useDiagramStore.setState({
       nodes: [makeNode('source'), makeNode('target')],
@@ -284,7 +235,7 @@ describe('diagram store', () => {
     expect(useDiagramStore.getState().selectedEdgeIds).toEqual([])
   })
 
-  it('removes an empty text node, attached arrows, and pending connection', () => {
+  it('removes an empty text node and its attached arrows', () => {
     useDiagramStore.setState({
       nodes: [
         makeNode('text', { kind: 'text', label: '' }),
@@ -292,7 +243,6 @@ describe('diagram store', () => {
       ],
       edges: [{ id: 'edge', source: 'text', target: 'shape' }],
       selectedNodeIds: ['text'],
-      pendingConnector: { nodeId: 'text', handleId: 'right' },
     })
 
     useDiagramStore.getState().removeNode('text')
@@ -301,7 +251,6 @@ describe('diagram store', () => {
       nodes: [expect.objectContaining({ id: 'shape' })],
       edges: [],
       selectedNodeIds: [],
-      pendingConnector: null,
     })
   })
 

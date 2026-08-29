@@ -51,6 +51,7 @@ import {
   Field,
   IconButton,
   RangeInput,
+  Spinner,
   SwatchPicker,
   TextInput,
   duration,
@@ -110,6 +111,9 @@ const themeNames: Record<ThemePreference, string> = {
   system: 'system',
 }
 const EXPORT_TIMEOUT_MS = 5000
+/** How close a connection drag has to get before it snaps to a handle. */
+const CONNECT_RADIUS = 28
+const SELECT_RADIUS = 20
 const MIN_ZOOM = 0.05
 const MAX_ZOOM = 8
 const ZOOM_STEP = 1.2
@@ -171,7 +175,6 @@ function App() {
   const onNodesChange = useDiagramStore((state) => state.onNodesChange)
   const onEdgesChange = useDiagramStore((state) => state.onEdgesChange)
   const connect = useDiagramStore((state) => state.connect)
-  const cancelConnector = useDiagramStore((state) => state.cancelConnector)
   const logInteraction = useDiagramStore((state) => state.logInteraction)
   const clearInteractionLog = useDiagramStore(
     (state) => state.clearInteractionLog,
@@ -196,6 +199,21 @@ function App() {
   const [zoom, setZoom] = useState(1)
   const [inspectorOpen, setInspectorOpen] = useState(true)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const [activityOpen, setActivityOpen] = useState(false)
+
+  /**
+   * What the pointer does on the canvas right now.
+   *
+   * This is the fix for the Arrow tool: previously `arrowActive` only added a
+   * CSS class, so React Flow kept `selectionOnDrag` on and a drag drew a
+   * marquee instead of a connector. Every interaction prop below is derived
+   * from the mode, so a tool cannot look active without behaving that way.
+   */
+  const canvasMode: 'select' | 'connect' | 'draw' = activeShape
+    ? 'draw'
+    : arrowActive
+      ? 'connect'
+      : 'select'
 
   const changeZoom = useCallback((factor: number) => {
     const instance = flowInstance.current
@@ -279,8 +297,7 @@ function App() {
     setActiveShape(null)
     setArrowActive(false)
     setDrawDraft(null)
-    cancelConnector()
-  }, [cancelConnector])
+  }, [])
 
   /** Escape unwinds one layer at a time: dialog, then tool, then selection. */
   const escape = useCallback(() => {
@@ -731,10 +748,14 @@ function App() {
       <section
         className={`canvas-wrap${arrowActive ? ' connecting' : ''}`}
         aria-label="Diagram canvas"
+        data-hydrated={hydrated}
         onDoubleClick={createTextAtCursor}
       >
         {!hydrated ? (
-          <div className="loading-state">Loading local diagram...</div>
+          <div className="loading-state">
+            <Spinner size={22} label="Loading your board" />
+            <span>Loading your board</span>
+          </div>
         ) : null}
         <ReactFlow
           nodes={flowNodes}
@@ -756,11 +777,18 @@ function App() {
           fitViewOptions={{ maxZoom: 1 }}
           deleteKeyCode={null}
           connectionMode={ConnectionMode.Loose}
-          connectOnClick={false}
-          nodesConnectable
+          // Click one handle then another, rather than only drag-to-connect.
+          connectOnClick={canvasMode === 'connect'}
+          connectionRadius={
+            canvasMode === 'connect' ? CONNECT_RADIUS : SELECT_RADIUS
+          }
+          nodesConnectable={canvasMode !== 'draw'}
+          // A drag must not move a node or draw a marquee while a tool that
+          // owns the drag is active.
+          nodesDraggable={canvasMode === 'select'}
           edgesFocusable
           edgesReconnectable={false}
-          selectionOnDrag
+          selectionOnDrag={canvasMode === 'select'}
           selectionMode={SelectionMode.Partial}
           multiSelectionKeyCode="Shift"
           panOnDrag={[1, 2]}
@@ -850,7 +878,10 @@ function App() {
         ) : null}
       </section>
 
-      <aside className="chrome-card properties-panel">
+      <aside
+        className="chrome-card properties-panel"
+        data-state={inspectorOpen ? 'open' : 'closed'}
+      >
         <div className="panel-heading">
           <div>
             <h2>
@@ -1018,8 +1049,14 @@ function App() {
             Select a node to edit its label and appearance.
           </p>
         )}
-        <details className="interaction-log">
-          <summary className="interaction-log-summary">
+        <section className="interaction-log" data-state={activityOpen ? 'open' : 'closed'}>
+          <button
+            className="interaction-log-summary"
+            type="button"
+            aria-expanded={activityOpen}
+            aria-controls="activity-panel"
+            onClick={() => setActivityOpen((open) => !open)}
+          >
             <ChevronRight
               className="interaction-log-chevron"
               size={13}
@@ -1031,29 +1068,33 @@ function App() {
                 {interactionLog.length}
               </span>
             ) : null}
-          </summary>
-          {interactionLog.length > 0 ? (
-            <>
-              <ol aria-live="polite">
-                {[...interactionLog].reverse().map((entry) => (
-                  <li key={entry.id}>
-                    <time>{entry.time}</time>
-                    <span>{entry.message}</span>
-                  </li>
-                ))}
-              </ol>
-              <button
-                className="interaction-log-clear"
-                type="button"
-                onClick={clearInteractionLog}
-              >
-                Clear activity
-              </button>
-            </>
-          ) : (
-            <p>No interactions recorded.</p>
-          )}
-        </details>
+          </button>
+          <div className="interaction-log-region" id="activity-panel">
+            <div className="interaction-log-content">
+              {interactionLog.length > 0 ? (
+                <>
+                  <ol aria-live="polite">
+                    {[...interactionLog].reverse().map((entry) => (
+                      <li key={entry.id}>
+                        <time>{entry.time}</time>
+                        <span>{entry.message}</span>
+                      </li>
+                    ))}
+                  </ol>
+                  <button
+                    className="interaction-log-clear"
+                    type="button"
+                    onClick={clearInteractionLog}
+                  >
+                    Clear activity
+                  </button>
+                </>
+              ) : (
+                <p>No interactions recorded.</p>
+              )}
+            </div>
+          </div>
+        </section>
       </aside>
 
       <ShortcutsDialog

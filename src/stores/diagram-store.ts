@@ -28,7 +28,6 @@ export interface DiagramNodeData extends Record<string, unknown> {
 
 export type FlowDiagramNode = Node<DiagramNodeData, 'diagramNode'>
 type SaveState = 'loading' | 'saving' | 'saved' | 'error'
-type PendingConnector = { nodeId: string; handleId: string }
 type InteractionLog = { id: string; time: string; message: string }
 
 interface DiagramState {
@@ -37,7 +36,6 @@ interface DiagramState {
   edges: DiagramEdge[]
   selectedNodeIds: string[]
   selectedEdgeIds: string[]
-  pendingConnector: PendingConnector | null
   interactionLog: InteractionLog[]
   /** In-app clipboard. Deliberately not the system clipboard: reading that
    *  needs a permission prompt, and copying between boards is not a goal. */
@@ -58,8 +56,6 @@ interface DiagramState {
   onNodesChange: (changes: NodeChange<FlowDiagramNode>[]) => void
   onEdgesChange: (changes: EdgeChange[]) => void
   connect: (connection: Connection) => void
-  clickConnector: (nodeId: string, handleId: string) => void
-  cancelConnector: () => void
   logInteraction: (message: string) => void
   clearInteractionLog: () => void
   setSelection: (nodeIds: string[], edgeIds: string[]) => void
@@ -204,7 +200,6 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
   edges: initialDocument.edges,
   selectedNodeIds: [],
   selectedEdgeIds: [],
-  pendingConnector: null,
   interactionLog: [],
   clipboard: { nodes: [], edges: [] },
   hydrated: false,
@@ -366,7 +361,6 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
         ],
         selectedNodeIds: [],
         selectedEdgeIds: [id],
-        pendingConnector: null,
         interactionLog: appendInteraction(
           state.interactionLog,
           `Arrow created by drag: ${sourceLabel} -> ${targetLabel}`,
@@ -374,65 +368,6 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
       }
     })
   },
-  clickConnector: (nodeId, handleId) =>
-    set((state) => {
-      const pending = state.pendingConnector
-      const nodeLabel =
-        state.nodes.find((node) => node.id === nodeId)?.label ?? nodeId
-      if (!pending) {
-        return {
-          pendingConnector: { nodeId, handleId },
-          interactionLog: appendInteraction(
-            state.interactionLog,
-            `First connector: ${nodeLabel}.${handleId}; click a second connector`,
-          ),
-        }
-      }
-      if (pending.nodeId === nodeId && pending.handleId === handleId) {
-        return {
-          pendingConnector: null,
-          interactionLog: appendInteraction(
-            state.interactionLog,
-            `Arrow cancelled at ${nodeLabel}.${handleId}`,
-          ),
-        }
-      }
-      const id = crypto.randomUUID()
-      const sourceLabel =
-        state.nodes.find((node) => node.id === pending.nodeId)?.label ??
-        pending.nodeId
-      return {
-        edges: [
-          ...state.edges,
-          {
-            id,
-            source: pending.nodeId,
-            target: nodeId,
-            sourceHandle: pending.handleId,
-            targetHandle: handleId,
-          },
-        ],
-        selectedNodeIds: [],
-        selectedEdgeIds: [id],
-        pendingConnector: null,
-        interactionLog: appendInteraction(
-          state.interactionLog,
-          `Arrow created: ${sourceLabel}.${pending.handleId} -> ${nodeLabel}.${handleId}`,
-        ),
-      }
-    }),
-  cancelConnector: () =>
-    set((state) =>
-      state.pendingConnector
-        ? {
-            pendingConnector: null,
-            interactionLog: appendInteraction(
-              state.interactionLog,
-              'Pending arrow cancelled',
-            ),
-          }
-        : state,
-    ),
   logInteraction: (message) =>
     set((state) => ({
       interactionLog: appendInteraction(state.interactionLog, message),
@@ -463,7 +398,7 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
     set((state) =>
       state.selectedNodeIds.length === 0 && state.selectedEdgeIds.length === 0
         ? state
-        : { selectedNodeIds: [], selectedEdgeIds: [], pendingConnector: null },
+        : { selectedNodeIds: [], selectedEdgeIds: [] },
     ),
   duplicateSelected: () =>
     set((state) => {
@@ -545,7 +480,6 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
       ),
       selectedNodeIds: [],
       selectedEdgeIds: [],
-      pendingConnector: null,
       interactionLog: appendInteraction(
         state.interactionLog,
         `Deleted ${selectedNodeIds.length} node(s) and ${selectedEdgeIds.length} arrow(s)`,
@@ -559,10 +493,6 @@ export const useDiagramStore = create<DiagramState>((set, get) => ({
         (edge) => edge.source !== nodeId && edge.target !== nodeId,
       ),
       selectedNodeIds: state.selectedNodeIds.filter((id) => id !== nodeId),
-      pendingConnector:
-        state.pendingConnector?.nodeId === nodeId
-          ? null
-          : state.pendingConnector,
       interactionLog: appendInteraction(
         state.interactionLog,
         'Empty text box discarded',

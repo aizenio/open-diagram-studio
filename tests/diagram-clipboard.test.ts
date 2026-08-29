@@ -53,14 +53,13 @@ describe('selection commands', () => {
     expect(useDiagramStore.getState().selectedEdgeIds).toEqual(['e1'])
   })
 
-  it('clears the selection and any pending connector', () => {
+  it('clears the selection', () => {
     reset([makeNode('a')], [], ['a'])
-    useDiagramStore.setState({ pendingConnector: { nodeId: 'a', handleId: 'top' } })
 
     useDiagramStore.getState().clearSelection()
 
     expect(useDiagramStore.getState().selectedNodeIds).toEqual([])
-    expect(useDiagramStore.getState().pendingConnector).toBeNull()
+    expect(useDiagramStore.getState().selectedEdgeIds).toEqual([])
   })
 
   it('leaves state untouched when there is nothing to clear', () => {

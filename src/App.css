@@ -217,6 +217,17 @@ textarea {
   line-height: var(--ds-line-height-relaxed);
 }
 
+/* The board arrives already laid out; fading it in stops that from reading as
+   a flash of content. */
+.canvas-wrap[data-hydrated='true'] .react-flow__viewport {
+  animation: board-in var(--ds-duration-slow) var(--ds-ease-decelerate) both;
+}
+
+@keyframes board-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .drawing-layer {
   position: absolute;
   z-index: var(--ds-z-canvas-overlay);
@@ -360,8 +371,17 @@ textarea {
 .react-flow__node:hover .diagram-node .react-flow__handle,
 .selected .diagram-node .react-flow__handle { opacity: .55; }
 .diagram-node .react-flow__handle:hover { opacity: 1; }
-.diagram-node .react-flow__handle.clickconnecting,
-.diagram-node .react-flow__handle.connector-handle--pending {
+/* The dot stays 8px; what it accepts does not. Landing a connection drag
+   inside 8px is what made the Arrow tool feel broken. */
+.diagram-node .react-flow__handle::after {
+  position: absolute;
+  inset: -7px;
+  content: '';
+  border-radius: var(--ds-radius-full);
+}
+/* React Flow's own connect-state classes, now that it owns the interaction. */
+.diagram-node .react-flow__handle.connectingfrom,
+.diagram-node .react-flow__handle.connectingto {
   background: var(--ds-color-handle);
   box-shadow: 0 0 0 4px var(--ds-color-handle-ring);
   opacity: 1;
@@ -437,7 +457,22 @@ textarea {
   scrollbar-color: var(--ds-color-border-strong) transparent;
   overscroll-behavior: contain;
 }
-.inspector-closed .properties-panel { display: none; }
+/* Kept mounted so it can animate. `visibility` is what takes it out of the
+   tab order, and it is delayed so it lands after the fade rather than during. */
+.properties-panel {
+  transform-origin: top right;
+  transition:
+    opacity var(--ds-duration-base) var(--ds-ease-standard),
+    transform var(--ds-duration-base) var(--ds-ease-standard),
+    visibility 0s linear 0s;
+}
+.properties-panel[data-state='closed'] {
+  opacity: 0;
+  transform: translateX(var(--ds-space-1)) scale(0.98);
+  visibility: hidden;
+  pointer-events: none;
+  transition-delay: 0s, 0s, var(--ds-duration-base);
+}
 
 .panel-heading {
   display: flex;
@@ -491,23 +526,38 @@ textarea {
   display: flex;
   align-items: center;
   gap: var(--ds-space-05);
+  width: 100%;
   padding: var(--ds-space-15) var(--ds-space-2);
   color: var(--ds-color-text-tertiary);
+  background: transparent;
+  border: 0;
   cursor: pointer;
   font-size: var(--ds-font-size-3xs);
   font-weight: var(--ds-font-weight-semibold);
   letter-spacing: var(--ds-letter-spacing-caps);
   text-transform: uppercase;
-  list-style: none;
+  text-align: left;
   transition: var(--ds-transition-control);
 }
-.interaction-log-summary::-webkit-details-marker { display: none; }
 .interaction-log-summary:hover { color: var(--ds-color-text-secondary); }
+
+/* 0fr → 1fr is the one way to transition to a content-sized height. */
+.interaction-log-region {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--ds-duration-base) var(--ds-ease-standard);
+}
+.interaction-log[data-state='open'] .interaction-log-region {
+  grid-template-rows: 1fr;
+}
+.interaction-log-content { overflow: hidden; }
 .interaction-log-chevron {
   flex: none;
   transition: transform var(--ds-duration-fast) var(--ds-ease-standard);
 }
-.interaction-log[open] .interaction-log-chevron { transform: rotate(90deg); }
+.interaction-log[data-state='open'] .interaction-log-chevron {
+  transform: rotate(90deg);
+}
 .interaction-log-count {
   margin-left: auto;
   padding: 0 var(--ds-space-05);
