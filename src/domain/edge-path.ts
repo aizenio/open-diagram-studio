@@ -1,4 +1,4 @@
-import type { DiagramEdge, DiagramNode } from './diagram'
+import type { DiagramEdge, DiagramNode, StrokePoint } from './diagram'
 
 /** A connection point plus the direction the line leaves the shape. */
 export interface EdgePoint {
@@ -23,6 +23,61 @@ export function edgeEndpoint(
       return { x: node.x, y: node.y + node.height / 2, dx: -1, dy: 0 }
     default:
       return { x: node.x + node.width, y: node.y + node.height / 2, dx: 1, dy: 0 }
+  }
+}
+
+/**
+ * An end that is pinned to the board rather than to a node.
+ *
+ * It has no shape to leave, so its direction points at the other end — which
+ * is what keeps a curved free-standing line bowing sensibly instead of
+ * doubling back.
+ */
+export function pinnedEndpoint(
+  point: StrokePoint,
+  toward: StrokePoint,
+): EdgePoint {
+  const dx = toward.x - point.x
+  const dy = toward.y - point.y
+  const length = Math.hypot(dx, dy)
+  if (length === 0) return { x: point.x, y: point.y, dx: 1, dy: 0 }
+  return { x: point.x, y: point.y, dx: dx / length, dy: dy / length }
+}
+
+/**
+ * Works out both ends of an edge, whichever mix of attached and pinned it is.
+ *
+ * Returns `null` when an attached end has lost its node — the edge has nothing
+ * to draw between.
+ */
+export function resolveEdgeEnds(
+  edge: DiagramEdge,
+  nodeById: Map<string, DiagramNode>,
+): { source: EdgePoint; target: EdgePoint } | null {
+  const sourceNode = edge.source ? nodeById.get(edge.source) : undefined
+  const targetNode = edge.target ? nodeById.get(edge.target) : undefined
+  if (edge.source && !sourceNode) return null
+  if (edge.target && !targetNode) return null
+
+  const sourceAnchor =
+    sourceNode !== undefined
+      ? edgeEndpoint(sourceNode, edge.sourceHandle)
+      : edge.sourcePoint
+  const targetAnchor =
+    targetNode !== undefined
+      ? edgeEndpoint(targetNode, edge.targetHandle)
+      : edge.targetPoint
+  if (!sourceAnchor || !targetAnchor) return null
+
+  return {
+    source:
+      sourceNode !== undefined
+        ? (sourceAnchor as EdgePoint)
+        : pinnedEndpoint(sourceAnchor, targetAnchor),
+    target:
+      targetNode !== undefined
+        ? (targetAnchor as EdgePoint)
+        : pinnedEndpoint(targetAnchor, sourceAnchor),
   }
 }
 

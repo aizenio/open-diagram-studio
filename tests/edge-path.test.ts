@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildEdgePath,
   edgeEndpoint,
+  resolveEdgeEnds,
   strokeDashArray,
 } from '../src/domain/edge-path'
 import type { DiagramNode } from '../src/domain/diagram'
@@ -95,5 +96,59 @@ describe('strokeDashArray', () => {
 
   it('uses round caps for dots by drawing zero-length dashes', () => {
     expect(strokeDashArray('dotted', 2)).toBe('0.1 5')
+  })
+})
+
+describe('resolveEdgeEnds', () => {
+  const nodes = new Map([['n', node]])
+
+  it('resolves an edge attached at both ends', () => {
+    const ends = resolveEdgeEnds(
+      { id: 'e', source: 'n', target: 'n', sourceHandle: 'right', targetHandle: 'left' },
+      nodes,
+    )
+    expect(ends?.source).toEqual({ x: 300, y: 250, dx: 1, dy: 0 })
+    expect(ends?.target).toEqual({ x: 100, y: 250, dx: -1, dy: 0 })
+  })
+
+  it('points a pinned end at the other end so a curve bows sensibly', () => {
+    const ends = resolveEdgeEnds(
+      {
+        id: 'e',
+        sourcePoint: { x: 0, y: 0 },
+        targetPoint: { x: 100, y: 0 },
+      },
+      nodes,
+    )
+    expect(ends?.source).toEqual({ x: 0, y: 0, dx: 1, dy: 0 })
+    expect(ends?.target).toEqual({ x: 100, y: 0, dx: -1, dy: 0 })
+  })
+
+  it('handles a line attached at one end and pinned at the other', () => {
+    const ends = resolveEdgeEnds(
+      { id: 'e', source: 'n', sourceHandle: 'right', targetPoint: { x: 500, y: 250 } },
+      nodes,
+    )
+    expect(ends?.source).toEqual({ x: 300, y: 250, dx: 1, dy: 0 })
+    expect(ends?.target).toEqual({ x: 500, y: 250, dx: -1, dy: 0 })
+  })
+
+  it('gives up when an attached end has lost its node', () => {
+    expect(
+      resolveEdgeEnds({ id: 'e', source: 'gone', target: 'n' }, nodes),
+    ).toBeNull()
+  })
+
+  it('gives up when an end resolves to nothing at all', () => {
+    expect(resolveEdgeEnds({ id: 'e', source: 'n' }, nodes)).toBeNull()
+  })
+
+  it('survives a zero-length line without dividing by zero', () => {
+    const ends = resolveEdgeEnds(
+      { id: 'e', sourcePoint: { x: 5, y: 5 }, targetPoint: { x: 5, y: 5 } },
+      nodes,
+    )
+    expect(ends?.source.dx).toBe(1)
+    expect(ends?.source.dy).toBe(0)
   })
 })

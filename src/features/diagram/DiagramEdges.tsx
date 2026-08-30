@@ -6,7 +6,7 @@ import {
 } from '../../domain/diagram'
 import {
   buildEdgePath,
-  edgeEndpoint,
+  resolveEdgeEnds,
   strokeDashArray,
 } from '../../domain/edge-path'
 
@@ -51,9 +51,8 @@ export function DiagramEdges({
           </marker>
         </defs>
         {edges.map((edge) => {
-          const sourceNode = nodeById.get(edge.source)
-          const targetNode = nodeById.get(edge.target)
-          if (!sourceNode || !targetNode) return null
+          const ends = resolveEdgeEnds(edge, nodeById)
+          if (!ends) return null
 
           const routing = edge.routing ?? edgeDefaults.routing
           const strokeWidth = edge.strokeWidth ?? edgeDefaults.strokeWidth
@@ -61,11 +60,7 @@ export function DiagramEdges({
           const startArrow = edge.startArrow ?? edgeDefaults.startArrow
           const endArrow = edge.endArrow ?? edgeDefaults.endArrow
 
-          const path = buildEdgePath(
-            edgeEndpoint(sourceNode, edge.sourceHandle),
-            edgeEndpoint(targetNode, edge.targetHandle),
-            routing,
-          )
+          const path = buildEdgePath(ends.source, ends.target, routing)
           const selected = selectedEdgeIds.includes(edge.id)
 
           return (

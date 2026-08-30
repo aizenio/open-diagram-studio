@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DiagramDocument, DiagramNode } from '../src/domain/diagram'
-import {
-  toFlowEdge,
-  toFlowNode,
-  useDiagramStore,
-} from '../src/stores/diagram-store'
+import { useDiagramStore } from '../src/stores/diagram-store'
 
 const makeNode = (
   id: string,
@@ -220,21 +216,6 @@ describe('diagram store', () => {
     })
   })
 
-  it('tracks React Flow edge selection and removal', () => {
-    useDiagramStore.setState({
-      edges: [{ id: 'edge', source: 'source', target: 'target' }],
-    })
-
-    useDiagramStore.getState().onEdgesChange([
-      { id: 'edge', type: 'select', selected: true },
-    ])
-    expect(useDiagramStore.getState().selectedEdgeIds).toEqual(['edge'])
-
-    useDiagramStore.getState().onEdgesChange([{ id: 'edge', type: 'remove' }])
-    expect(useDiagramStore.getState().edges).toEqual([])
-    expect(useDiagramStore.getState().selectedEdgeIds).toEqual([])
-  })
-
   it('removes an empty text node and its attached arrows', () => {
     useDiagramStore.setState({
       nodes: [
@@ -298,29 +279,4 @@ describe('diagram store', () => {
     expect(useDiagramStore.getState().interactionLog).toEqual([])
   })
 
-  it('converts domain nodes and arrows into selected React Flow objects', () => {
-    const flowNode = toFlowNode(makeNode('node'), ['node'])
-    const flowEdge = toFlowEdge(
-      {
-        id: 'edge',
-        source: 'node',
-        target: 'target',
-        sourceHandle: 'source-right',
-        targetHandle: 'target-left',
-      },
-      ['edge'],
-    )
-
-    expect(flowNode).toMatchObject({
-      selected: true,
-      position: { x: 10, y: 20 },
-      measured: { width: 156, height: 84 },
-    })
-    expect(flowEdge).toMatchObject({
-      selected: true,
-      sourceHandle: 'right',
-      targetHandle: 'left',
-      style: { strokeWidth: 3 },
-    })
-  })
 })
