@@ -1,5 +1,4 @@
 import {
-  ArrowUpRight,
   Box,
   Circle,
   Cloud,
@@ -7,16 +6,13 @@ import {
   Diamond,
   Hexagon,
   Highlighter,
-  Minus,
   Monitor,
   MousePointer2,
-  MoveRight,
   Pencil,
   PenTool,
   RectangleHorizontal,
   Server,
   Shapes,
-  Square,
   SquareDashed,
   Star,
   StickyNote,
@@ -26,6 +22,11 @@ import {
   Eraser,
   Cylinder,
   Spline,
+  Frame,
+  Layers,
+  Network,
+  Slash,
+  MoveUpRight,
   type LucideIcon,
 } from 'lucide-react'
 import type { DiagramNodeKind } from '../../domain/diagram'
@@ -49,7 +50,7 @@ export const kindIcons: Record<DiagramNodeKind, LucideIcon> = {
   client: Monitor,
   server: Server,
   database: Database,
-  queue: Waypoints,
+  queue: Layers,
   cloud: Cloud,
 }
 
@@ -67,16 +68,26 @@ export const penLabels: Record<PenType, string> = {
   eraser: 'Eraser',
 }
 
+/**
+ * Rail icons.
+ *
+ * Each one is a stable picture of what the group *is*, not of whichever member
+ * you used last: the group's members already show their own state inside the
+ * flyout, and a button whose picture changes is a button you cannot learn.
+ */
 export const groupIcons = {
   select: MousePointer2,
+  // A circle, square and triangle together — reads as "shapes", not "a shape".
   shapes: Shapes,
-  lines: Minus,
-  connector: ArrowUpRight,
+  // A plain diagonal line; the arrow variant swaps in MoveUpRight.
+  line: Slash,
+  lineArrow: MoveUpRight,
+  // Nodes joined by a path, which is what a connector does.
+  connector: Waypoints,
   sticky: StickyNote,
-  frame: SquareDashed,
+  frame: Frame,
   text: Type,
   pen: Pencil,
-  architecture: Server,
-  square: Square,
-  arrow: MoveRight,
+  // A node graph, distinct from the Server icon one of its members uses.
+  architecture: Network,
 } as const

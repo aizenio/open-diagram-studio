@@ -1,5 +1,10 @@
-import { useLayoutEffect, useRef, useState } from 'react'
-import { ChevronRight } from 'lucide-react'
+import {
+  Fragment,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { IconButton } from '../../design-system'
 import type { DiagramNodeKind } from '../../domain/diagram'
 import { specFor } from '../../domain/node-kinds'
@@ -9,17 +14,21 @@ import {
   type FlyoutId,
   type Tool,
 } from '../../stores/tool-store'
-import { groupIcons, kindIcons } from './tool-rail-items'
+import { groupIcons } from './tool-rail-items'
 import { ToolFlyout } from './ToolFlyout'
+import { ConnectorGlyph, ShapeGlyph, ShapesGlyph } from './ShapeGlyph'
 
 interface RailEntry {
   id: string
   label: string
   shortcut?: string
-  icon: (typeof groupIcons)['select']
+  /** A node, not a component: the rail mixes stock icons with drawn glyphs. */
+  icon: ReactNode
   tool: Tool
   /** Groups open a flyout as well as selecting their remembered tool. */
   flyout?: FlyoutId
+  /** Starts a new group in the rail. */
+  startsGroup?: boolean
 }
 
 /**
@@ -65,22 +74,30 @@ export function ToolRail() {
       id: 'select',
       label: 'Select',
       shortcut: 'V',
-      icon: groupIcons.select,
+      icon: <groupIcons.select size={20} />,
       tool: { kind: 'select' },
     },
     {
       id: 'shapes',
       label: 'Shapes',
       shortcut: 'R',
-      icon: kindIcons[lastShape] ?? groupIcons.shapes,
+      icon: <ShapesGlyph />,
       tool: shapeTool,
       flyout: 'shapes',
+      startsGroup: true,
     },
     {
       id: 'lines',
       label: 'Lines',
       shortcut: 'L',
-      icon: groupIcons.lines,
+      // The one icon that follows its setting, because "line" and "arrow" are
+      // different things to draw rather than two members of a group.
+      icon:
+        lineArrow === 'arrow' ? (
+          <groupIcons.lineArrow size={20} />
+        ) : (
+          <groupIcons.line size={20} />
+        ),
       tool: lineTool,
       flyout: 'lines',
     },
@@ -88,36 +105,37 @@ export function ToolRail() {
       id: 'connector',
       label: 'Connector',
       shortcut: 'A',
-      icon: groupIcons.connector,
+      icon: <ConnectorGlyph />,
       tool: { kind: 'connector' },
     },
     {
       id: 'sticky',
       label: 'Sticky note',
       shortcut: 'N',
-      icon: groupIcons.sticky,
+      icon: <ShapeGlyph kind="stickyNote" />,
       tool: { kind: 'shape', shape: 'stickyNote' },
       flyout: 'sticky',
+      startsGroup: true,
     },
     {
       id: 'frame',
       label: 'Frame',
       shortcut: 'F',
-      icon: groupIcons.frame,
+      icon: <ShapeGlyph kind="frame" />,
       tool: { kind: 'shape', shape: 'frame' },
     },
     {
       id: 'text',
       label: 'Text',
       shortcut: 'T',
-      icon: groupIcons.text,
+      icon: <groupIcons.text size={20} />,
       tool: { kind: 'shape', shape: 'text' },
     },
     {
       id: 'pen',
       label: 'Draw',
       shortcut: 'P',
-      icon: groupIcons.pen,
+      icon: <groupIcons.pen size={20} />,
       tool: penTool,
       flyout: 'pen',
     },
@@ -125,9 +143,10 @@ export function ToolRail() {
       id: 'architecture',
       label: 'Architecture',
       shortcut: 'I',
-      icon: kindIcons[lastArchitecture] ?? groupIcons.architecture,
+      icon: <groupIcons.architecture size={20} />,
       tool: architectureTool,
       flyout: 'architecture',
+      startsGroup: true,
     },
   ]
 
@@ -136,7 +155,7 @@ export function ToolRail() {
   useLayoutEffect(() => {
     const grid = gridRef.current
     if (!grid) return
-    const active = grid.querySelector<HTMLElement>('[data-active="true"]')
+    const active = grid.querySelector<HTMLElement>('button[data-active="true"]')
     if (!active) {
       setIndicator(null)
       return
@@ -186,33 +205,35 @@ export function ToolRail() {
             />
           ) : null}
 
-          {entries.map((entry, index) => {
-            const Icon = entry.icon
+          {entries.map((entry) => {
             const isActive = activeEntry?.id === entry.id
             return (
-              <span key={entry.id} className="tool-slot">
-                {index === 1 || index === 4 || index === 8 ? (
+              <Fragment key={entry.id}>
+                {/* A sibling of the slots, not a child of one: nested in a slot
+                    it shared a line with the button and knocked it off the
+                    grid. */}
+                {entry.startsGroup ? (
                   <span className="tool-divider" aria-hidden="true" />
                 ) : null}
-                <IconButton
-                  size="lg"
-                  label={entry.label}
-                  shortcut={entry.shortcut}
-                  tooltipPlacement="right"
-                  icon={<Icon size={20} />}
+                <span
+                  className={`tool-slot${entry.flyout ? ' tool-slot--group' : ''}`}
                   data-active={isActive}
-                  aria-pressed={isActive}
-                  aria-expanded={
-                    entry.flyout ? openFlyout === entry.flyout : undefined
-                  }
-                  onClick={() => press(entry)}
-                />
-                {entry.flyout ? (
-                  <span className="tool-has-flyout" aria-hidden="true">
-                    <ChevronRight size={10} />
-                  </span>
-                ) : null}
-              </span>
+                >
+                  <IconButton
+                    size="lg"
+                    label={entry.label}
+                    shortcut={entry.shortcut}
+                    tooltipPlacement="right"
+                    icon={entry.icon}
+                    data-active={isActive}
+                    aria-pressed={isActive}
+                    aria-expanded={
+                      entry.flyout ? openFlyout === entry.flyout : undefined
+                    }
+                    onClick={() => press(entry)}
+                  />
+                </span>
+              </Fragment>
             )
           })}
         </div>
@@ -233,7 +254,6 @@ export function ShapeButton({
   active: boolean
   onPick: (kind: DiagramNodeKind) => void
 }) {
-  const Icon = kindIcons[kind]
   const spec = specFor(kind)
   return (
     <button
@@ -242,7 +262,7 @@ export function ShapeButton({
       aria-pressed={active}
       onClick={() => onPick(kind)}
     >
-      <Icon size={20} aria-hidden="true" />
+      <ShapeGlyph kind={kind} />
       <span>{spec.label || kind}</span>
     </button>
   )

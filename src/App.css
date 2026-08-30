@@ -137,21 +137,32 @@ textarea {
 }
 .tool-panel::-webkit-scrollbar { display: none; }
 
-.tool-slot { position: relative; display: block; }
-.tool-slot .ds-tooltip-anchor { position: relative; z-index: 1; }
-
-/* A hint that a group has more behind it. */
-.tool-has-flyout {
-  position: absolute;
-  right: 1px;
-  bottom: 3px;
+/* Grid, not block: an inline-flex tooltip anchor inside a block sits on the
+   text baseline and picks up descender space, which pushed icons off centre. */
+.tool-slot {
+  position: relative;
   display: grid;
   place-items: center;
-  color: var(--ds-color-text-tertiary);
-  pointer-events: none;
 }
-.tool-slot .ds-icon-btn[data-active='true'] ~ .tool-has-flyout {
-  color: var(--ds-color-on-accent);
+.tool-slot .ds-tooltip-anchor { position: relative; z-index: 1; }
+
+/* A corner notch marking the groups that open a flyout. Drawn on the slot
+   rather than as its own element, so it cannot affect layout at all. */
+.tool-slot--group::after {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  z-index: 2;
+  width: 0;
+  height: 0;
+  content: '';
+  border-top: 4px solid transparent;
+  border-right: 4px solid var(--ds-color-text-tertiary);
+  pointer-events: none;
+  transition: border-color var(--ds-duration-fast) var(--ds-ease-standard);
+}
+.tool-slot--group[data-active='true']::after {
+  border-right-color: var(--ds-color-on-accent);
 }
 
 /* One pill that slides between tools, measured from the DOM. */
@@ -291,12 +302,25 @@ textarea {
 }
 
 /* Buttons here come from the design system (<IconButton size="lg">); this only
-   arranges them. */
-.tool-grid { display: grid; gap: var(--ds-space-025); }
+   arranges them. `justify-items: center` is what keeps every icon on the
+   rail's centre line regardless of what else a row contains. */
+.tool-grid {
+  /* The sliding indicator is measured against this element, so it has to be
+     the one the indicator is positioned against too. Without it the pill
+     resolved against .tool-panel and sat that panel's padding up and left. */
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: var(--ds-space-025);
+}
 
+/* A grid item in its own right. As a child of a slot it was an inline span,
+   so its height collapsed and it shared a line with the button. */
 .tool-divider {
+  display: block;
+  width: calc(100% - var(--ds-space-1));
   height: 1px;
-  margin: var(--ds-space-025) var(--ds-space-05);
+  margin: var(--ds-space-05) 0;
   background: var(--ds-color-border-subtle);
 }
 
